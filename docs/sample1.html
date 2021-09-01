@@ -1,0 +1,162 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="https://github.githubassets.com/favicon.ico">
+    <title>tcjs sample1</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../tcjs.min.js"></script>
+</head>
+
+<body>
+    <canvas id="chart_dataset"></canvas>
+    <hr>
+    <div id="score_graph"></div>
+    <hr>
+    <div id="chart_result"></div>
+    <script>
+        const prng = tcjs.utils.random("test.");
+        const color = ()=>{
+            const colors = [];
+            let i = 0;
+            while(i < 3){
+                colors.push(Math.floor(prng() * 256 ));
+                i++;
+            }
+            return colors
+        }
+
+        function rand(length) {
+            const ret = [];
+            tcjs.utils.range(length).forEach(() => {
+                ret.push(prng());
+            });
+            return ret;
+        }
+        function linear(length) {
+            const ret = [];
+            tcjs.utils.range(length).forEach((i) => {
+                ret.push( i  * 0.01 + prng() * 0.1);
+            });
+            return ret;
+        }
+        function sin(length) {
+            const ret = [];
+            tcjs.utils.range(length).forEach((i) => {
+                ret.push(Math.sin(i / 100 * 2 * Math.PI * 2) + 0.3 * prng());
+            });
+            return ret;
+        }
+        function cos(length) {
+            const ret = [];
+            tcjs.utils.range(length).forEach((i) => {
+                ret.push(Math.cos(i / 100 * 2 * Math.PI) + 0.3 * prng());
+            });
+            return ret;
+        }
+        const length = 100;
+        const testdata = [];
+        tcjs.utils.range(5).forEach(() => {
+            testdata.push(rand(length));
+        });
+        tcjs.utils.range(5).forEach(() => {
+            testdata.push(linear(length));
+        });
+        tcjs.utils.range(5).forEach(() => {
+            testdata.push(sin(length));
+        });
+        tcjs.utils.range(5).forEach(() => {
+            testdata.push(cos(length));
+        });
+
+
+        new Chart(document.getElementById("chart_dataset").getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: tcjs.utils.range(length),
+            datasets: 
+            testdata.map((data, i)=>{
+              const c = color();
+              return {
+                data: data,
+                label: i,
+                borderColor: `rgb(${c})`,
+                backgroundColor: `rgba(${c}, 0.1)`,
+              }
+            }),
+          },
+          options: {
+            scales: {
+              y: {
+                min: -1.5,
+                max: 1.5,
+              }
+            }
+          },
+        });
+
+        const kmedoids = new tcjs.kmedoids.Kmedoids(testdata);
+        const maxK = Math.floor(testdata.length/2);
+        const cvi = "silhouette";
+        tcjs.kmedoids.optimize(kmedoids, {
+            prng,
+            cvi,
+            maxCluster: maxK
+        }).then((result)=>{
+            const scoreGraph = document.createElement("canvas");
+            const scores = [null].concat(result.scores.map(({k, score})=>{
+              return score
+            }))
+            console.log(result)
+            new Chart(scoreGraph.getContext('2d'), {
+              type: 'line',
+              data: {
+                labels: tcjs.utils.range(1, maxK + 1),
+                datasets: [{
+                  data: scores,
+                  spanGaps: true,
+                  label: "score: " + cvi
+                }]
+              }
+            });
+            document.getElementById("score_graph").appendChild(scoreGraph);
+
+
+            result.clusters.forEach((clusterIndexes)=>{
+                const datasets = clusterIndexes.map((i)=>
+                {
+                    const c = color();
+                      return {
+                        data: testdata[i],
+                        label: i,
+                        borderColor: `rgb(${c})`,
+                        backgroundColor: `rgba(${c}, 0.1)`,
+                      }
+                });
+                const canvas = document.createElement("canvas");
+                new Chart(canvas.getContext('2d'), {
+                  type: 'line',
+                  data: {
+                    labels: tcjs.utils.range(length),
+                    datasets
+                  },
+                  options: {
+                    scales: {
+                      y: {
+                        min: -1.5,
+                        max: 1.5,
+                      }
+                    }
+                  },
+                });
+                document.getElementById("chart_result").appendChild(canvas);
+            });
+        });
+
+    </script>
+</body>
+</html>
